@@ -290,6 +290,7 @@ This error message appears because the system isn't fully installed yet. Press t
 # echo "#!/bin/sh" >> /etc/init.d/rcS
 # echo "/bin/mount -t proc proc /proc" >> /etc/init.d/rcS
 # chmod +x /etc/init.d/rcS
+# touch /etc/fstab
 ```
 
 Note that this step only needs to be done once. The Linux system is now ready, let's do some checking:
