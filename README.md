@@ -8,7 +8,7 @@ Building a minimal RISC-V Linux system with only Linux kernel and BusyBox, and r
 
 <!-- code_chunk_output -->
 
-- [1. Why not use the actual RISC-V hardware?](#1-why-not-use-the-actual-risc-v-hardware)
+- [1. Why not use the real RISC-V hardware?](#1-why-not-use-the-real-risc-v-hardware)
 - [2. Create the project folder](#2-create-the-project-folder)
 - [3. Create a RISC-V Linux "Hello World!" program](#3-create-a-risc-v-linux-hello-world-program)
 - [4. Build the Linux system](#4-build-the-linux-system)
@@ -18,10 +18,11 @@ Building a minimal RISC-V Linux system with only Linux kernel and BusyBox, and r
   - [5.1 Make the file system](#51-make-the-file-system)
 - [6. Boot the system](#6-boot-the-system)
 - [7. Run the "Hello World!" program](#7-run-the-hello-world-program)
+- [8. Get rid of the BusyBox](#8-get-rid-of-the-busybox)
 
 <!-- /code_chunk_output -->
 
-## 1. Why not use the actual RISC-V hardware?
+## 1. Why not use the real RISC-V hardware?
 
 The RISC-V ISA has become popular in recent years due to its ease of learning and implementation, and the RISC-V toolchains are now quite mature. However, high-performance, stable and affordable RISC-V chips are still missing as of 2023.
 
@@ -53,7 +54,8 @@ To begin, create a `main.c` file in the `~/riscv64-minimal-linux` directory and 
 ```c
 #include <stdio.h>
 
-int main(void){
+int main(void)
+{
     printf("Hello World!\n");
     return 0;
 }
@@ -74,7 +76,7 @@ Note that you may need to install the RISC-V GCC toolchains if they are not alre
 On Debian/Ubuntu, the packages are:
 
 - gcc-riscv64-linux-gnu
-- binutils-riscv64-linux-gnu
+- binutils-riscv64-linux-gnu (may be installed automatically)
 - gdb-multiarch
 
 After compiling, we obtain the output file `main.elf`, however it is certain that the program will not run properly. The program's instructions are in RISC-V, while the CPU of our host machine is *x86_64* or _ARM_, which cannot understand the meaning of RISC-V instructions.
@@ -240,7 +242,7 @@ The expected output should resemble the following:
 14 directories, 4 files
 ```
 
-Finally, exit the `mnt` folder and unmount the image file.
+Finally, leave the `mnt` folder and unmount the image file.
 
 ```bash
 $ cd ..
@@ -251,7 +253,15 @@ You now have an image file `vda.img` which contains a minimal bootable Linux fil
 
 ## 6. Boot the system
 
-To begin, install QEMU, On Arch Linux, the packaged is called `qemu-system-riscv`, on Debian/Ubuntu it's simply called `qemu-system`. Once you've installed QEMU, navigate back to the `~/riscv64-minimal-linux` folder again and run the following command:
+Install QEMU, On Arch Linux, the package is:
+
+- `qemu-system-riscv`
+
+On Debian/Ubuntu, the package is:
+
+- `qemu-system`
+
+Once you've installed QEMU, navigate back to the `~/riscv64-minimal-linux` folder again and run the following command:
 
 ```bash
 $ qemu-system-riscv64 \
@@ -329,3 +339,63 @@ Try running the "Hello World!" program we made:
 ```
 
 If there are no exceptions, a line of text that reads "Hello World!" will be displayed. This indicates that we've successfully created a minimal RISC-V Linux system. Finally, execute the `poweroff` command to turn off the virtual machine.
+
+## 8. Get rid of the BusyBox
+
+The above system can be further simplified if the shell (BusyBox) is not required. For instance, in cases where only one program needs to be run, the kernel can directly launch the program after the boot process has completed.
+
+
+
+```c
+#include <stdio.h>
+
+int main()
+{
+    char buf[80];
+    printf("================================\n");
+    printf("Endless loop, input anything and then press Enter key.\n");
+    printf("Press Ctrl+a, then press x to exit QEMU.\n");
+    while (1)
+    {
+        fgets(buf, 80, stdin);
+        printf(buf);
+    }
+}
+```
+
+```bash
+$ riscv64-linux-gnu-gcc -g -Wall -static -o echo.elf echo.c
+```
+
+.
+├── lost+found
+└── sbin
+    └── init
+
+3 directories, 1 file
+
+initrd (initial RAM disk) and initramfs (initial RAM File System)
+
+We can use initrd or initramfs to make preparations, such as starting the kernel and setting up hardware devices before mounting the real root file system (on system hard disk or storage).
+
+An initramfs, on the other hand, is not a filesystem. It is simply a (compressed) cpio archive (of type newc) which is unpacked into a tmpfs.
+
+```bash
+mkdir initramfs
+cd initramfs
+cp ../echo.elf .
+find . | \
+     cpio -o -v --format=newc | \
+     gzip > ../initramfs.cpio.gz
+```
+
+
+```bash
+qemu-system-riscv64 \
+    -machine virt \
+    -m 1G \
+    -kernel ./linux-6.2.10/arch/riscv/boot/Image \
+    -initrd ./rootfs.cpio.gz \
+    -append "root=/dev/ram rdinit=/echo.elf console=ttyS0" \
+    -nographic
+```
