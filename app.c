@@ -10,9 +10,11 @@
 
 int main(void)
 {
-    printf("This is demo app, press Ctrl+a, then press x to exit QEMU.\n");
+    printf("Hello, world!\n");
+    printf("Press Ctrl+a, then press x to exit QEMU.\n");
     while (1)
     {
-        //
+        int c = getchar();
+        putchar(c);
     }
 }

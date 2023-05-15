@@ -3,12 +3,13 @@
 *.bin
 *.hex
 
-build
-busybox-1.36.0
+busybox-1.36.0/
 busybox-1.36.0.tar.bz2
-linux-6.2.10
+linux-6.2.10/
 linux-6.2.10.tar.xz
 
-appdisk
-initramfs
+part1/
+vda.img
+
+ram1/
 initramfs.cpio.gz
